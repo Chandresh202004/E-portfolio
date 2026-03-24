@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>EEG BCI Simulation — Chandresh G U</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #080e1f;
+      --surface: #0f1a35;
+      --surface2: #15224a;
+      --border: rgba(255,255,255,0.08);
+      --white: #f0f4ff;
+      --muted: #7a8baa;
+      --accent: #2a5cff;
+      --accent2: #00d4aa;
+      --accent3: #ff6b6b;
+      --accent4: #ffd166;
+      --text: #e0e8ff;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Background grid */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(42,92,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(42,92,255,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* NAV */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 5vw;
+      background: rgba(8,14,31,0.9);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-brand {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1rem;
+      color: var(--white);
+      text-decoration: none;
+      opacity: 0.8;
+    }
+
+    .nav-back {
+      font-size: 0.82rem;
+      color: var(--muted);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: color 0.2s;
+    }
+
+    .nav-back:hover { color: var(--accent); }
+
+    /* HERO HEADER */
+    .sim-header {
+      position: relative;
+      z-index: 1;
+      padding: 4rem 5vw 2rem;
+      text-align: center;
+    }
+
+    .sim-label {
+      font-size: 0.72rem;
+      font-weight: 500;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--accent2);
+      margin-bottom: 1rem;
+    }
+
+    .sim-header h1 {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(2rem, 4vw, 3.2rem);
+      color: var(--white);
+      letter-spacing: -0.02em;
+      margin-bottom: 0.8rem;
+      line-height: 1.1;
+    }
+
+    .sim-header p {
+      font-size: 0.95rem;
+      color: var(--muted);
+      max-width: 560px;
+      margin: 0 auto;
+      line-height: 1.7;
+    }
+
+    /* MAIN LAYOUT */
+    .sim-layout {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 1.4rem;
+      padding: 2rem 5vw 4rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    /* SIDEBAR */
+    .sidebar { display: flex; flex-direction: column; gap: 1.2rem; }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.4rem;
+    }
+
+    .panel-title {
+      font-size: 0.7rem;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 1.1rem;
+    }
+
+    /* Controls */
+    .control-row {
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+
+    label {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 0.3rem;
+      display: block;
+    }
+
+    .select-input {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.55rem 0.8rem;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.85rem;
+      cursor: pointer;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .select-input:focus { border-color: var(--accent); }
+
+    .range-row {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+
+    .range-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .range-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      color: var(--accent2);
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .run-btn {
+      width: 100%;
+      padding: 0.75rem;
+      background: var(--accent);
+      color: var(--white);
+      border: none;
+      border-radius: 8px;
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 500;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 0.5rem;
+    }
+
+    .run-btn:hover { background: #1e46dd; transform: translateY(-1px); }
+    .run-btn:active { transform: translateY(0); }
+    .run-btn.running { background: var(--accent3); }
+
+    /* Confidence meter */
+    .confidence-block { display: flex; flex-direction: column; gap: 0.7rem; }
+
+    .conf-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .conf-label-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.78rem;
+    }
+
+    .conf-name { color: var(--muted); }
+    .conf-pct { font-family: 'JetBrains Mono', monospace; color: var(--white); }
+
+    .conf-bar-bg {
+      height: 6px;
+      background: rgba(255,255,255,0.07);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .conf-bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.6s ease;
+    }
+
+    /* Result box */
+    .result-box {
+      text-align: center;
+      padding: 1rem;
+      background: rgba(0,212,170,0.08);
+      border: 1px solid rgba(0,212,170,0.2);
+      border-radius: 8px;
+    }
+
+    .result-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      margin-bottom: 0.3rem;
+    }
+
+    .result-value {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.3rem;
+      color: var(--accent2);
+    }
+
+    .result-accuracy {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 0.2rem;
+    }
+
+    /* MAIN PANEL */
+    .main-panel { display: flex; flex-direction: column; gap: 1.2rem; }
+
+    /* EEG Canvas area */
+    .eeg-container {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.4rem;
+    }
+
+    .eeg-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.2rem;
+    }
+
+    .eeg-title {
+      font-size: 0.7rem;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .eeg-status {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .dot-live {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--accent2);
+      animation: blink 1.2s infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.2; }
+    }
+
+    .eeg-channels { display: flex; flex-direction: column; gap: 8px; }
+
+    .channel-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .channel-name {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.68rem;
+      color: var(--muted);
+      width: 32px;
+      flex-shrink: 0;
+    }
+
+    canvas.eeg-wave {
+      flex: 1;
+      height: 44px;
+      border-radius: 4px;
+      background: rgba(0,0,0,0.3);
+    }
+
+    /* Bottom row */
+    .bottom-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.2rem;
+    }
+
+    /* Frequency spectrum */
+    .spectrum-bars {
+      display: flex;
+      align-items: flex-end;
+      gap: 4px;
+      height: 80px;
+      padding: 0 0.5rem;
+    }
+
+    .spec-bar {
+      flex: 1;
+      border-radius: 3px 3px 0 0;
+      transition: height 0.3s ease;
+      min-height: 4px;
+    }
+
+    .spec-labels {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.4rem 0.5rem 0;
+    }
+
+    .spec-label {
+      font-size: 0.62rem;
+      color: var(--muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Accuracy timeline */
+    .acc-canvas-wrap canvas {
+      width: 100%;
+      height: 90px;
+      border-radius: 4px;
+    }
+
+    /* Info table */
+    .info-table { width: 100%; border-collapse: collapse; }
+    .info-table td {
+      padding: 0.5rem 0;
+      font-size: 0.8rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .info-table td:first-child { color: var(--muted); }
+    .info-table td:last-child {
+      color: var(--text);
+      text-align: right;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+    }
+
+    /* About section */
+    .about-strip {
+      position: relative;
+      z-index: 1;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 5vw 5rem;
+    }
+
+    .about-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2rem;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 2rem;
+    }
+
+    .about-block h4 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1rem;
+      color: var(--white);
+      margin-bottom: 0.6rem;
+    }
+
+    .about-block p {
+      font-size: 0.82rem;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    @media (max-width: 768px) {
+      .sim-layout { grid-template-columns: 1fr; }
+      .bottom-row { grid-template-columns: 1fr; }
+      .about-card { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <a href="index.html" class="nav-brand">Chandresh G U</a>
+    <a href="index.html" class="nav-back">← Back to Portfolio</a>
+  </nav>
+
+  <!-- HEADER -->
+  <div class="sim-header">
+    <div class="sim-label">Interactive Demo · MSVTNet Project</div>
+    <h1>EEG Motor Imagery<br><em style="font-style:italic; color: var(--accent2);">BCI Simulation</em></h1>
+    <p>Visualise how MSVTNet classifies brain EEG signals for motor imagery tasks — simulating the deep learning pipeline built in collaboration with NIT Tiruchirappalli.</p>
+  </div>
+
+  <!-- LAYOUT -->
+  <div class="sim-layout">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+
+      <!-- Controls -->
+      <div class="panel">
+        <div class="panel-title">Simulation Controls</div>
+        <div class="control-row">
+          <div>
+            <label>Imagery Task</label>
+            <select class="select-input" id="taskSelect">
+              <option value="left">Left Hand Movement</option>
+              <option value="right">Right Hand Movement</option>
+              <option value="feet">Feet Movement</option>
+              <option value="tongue">Tongue Movement</option>
+            </select>
+          </div>
+          <div>
+            <label>Subject Profile</label>
+            <select class="select-input" id="subjectSelect">
+              <option value="healthy">Healthy Subject</option>
+              <option value="noise">High Noise Conditions</option>
+              <option value="fatigue">Fatigued Subject</option>
+            </select>
+          </div>
+          <div class="range-row">
+            <div class="range-header">
+              <label style="margin:0">Signal Amplitude</label>
+              <span class="range-val" id="ampVal">1.0×</span>
+            </div>
+            <input type="range" id="ampRange" min="0.5" max="2" step="0.1" value="1.0">
+          </div>
+          <div class="range-row">
+            <div class="range-header">
+              <label style="margin:0">Noise Level</label>
+              <span class="range-val" id="noiseVal">20%</span>
+            </div>
+            <input type="range" id="noiseRange" min="0" max="100" step="5" value="20">
+          </div>
+          <button class="run-btn" id="runBtn">▶ Run Classification</button>
+        </div>
+      </div>
+
+      <!-- Classification Result -->
+      <div class="panel">
+        <div class="panel-title">MSVTNet Output</div>
+        <div class="result-box" id="resultBox">
+          <div class="result-label">Predicted Class</div>
+          <div class="result-value" id="resultValue">—</div>
+          <div class="result-accuracy" id="resultAcc">Run simulation to classify</div>
+        </div>
+        <div style="margin-top: 1.1rem;">
+          <div class="confidence-block" id="confBlock">
+            <div class="conf-row">
+              <div class="conf-label-row">
+                <span class="conf-name">Left Hand</span>
+                <span class="conf-pct" id="c0">—</span>
+              </div>
+              <div class="conf-bar-bg"><div class="conf-bar-fill" id="b0" style="width:0%; background: var(--accent);"></div></div>
+            </div>
+            <div class="conf-row">
+              <div class="conf-label-row">
+                <span class="conf-name">Right Hand</span>
+                <span class="conf-pct" id="c1">—</span>
+              </div>
+              <div class="conf-bar-bg"><div class="conf-bar-fill" id="b1" style="width:0%; background: var(--accent2);"></div></div>
+            </div>
+            <div class="conf-row">
+              <div class="conf-label-row">
+                <span class="conf-name">Feet</span>
+                <span class="conf-pct" id="c2">—</span>
+              </div>
+              <div class="conf-bar-bg"><div class="conf-bar-fill" id="b2" style="width:0%; background: var(--accent4);"></div></div>
+            </div>
+            <div class="conf-row">
+              <div class="conf-label-row">
+                <span class="conf-name">Tongue</span>
+                <span class="conf-pct" id="c3">—</span>
+              </div>
+              <div class="conf-bar-bg"><div class="conf-bar-fill" id="b3" style="width:0%; background: var(--accent3);"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Model Info -->
+      <div class="panel">
+        <div class="panel-title">Model Details</div>
+        <table class="info-table">
+          <tr><td>Model</td><td>MSVTNet</td></tr>
+          <tr><td>Channels</td><td>22 EEG</td></tr>
+          <tr><td>Sample Rate</td><td>250 Hz</td></tr>
+          <tr><td>Window</td><td>4 seconds</td></tr>
+          <tr><td>Classes</td><td>4 (MI tasks)</td></tr>
+          <tr><td>Accuracy</td><td style="color:var(--accent2)">+15% vs baseline</td></tr>
+        </table>
+      </div>
+
+    </div>
+
+    <!-- MAIN PANEL -->
+    <div class="main-panel">
+
+      <!-- EEG Waveforms -->
+      <div class="eeg-container">
+        <div class="eeg-header">
+          <span class="eeg-title">Live EEG Signal Channels</span>
+          <span class="eeg-status">
+            <span class="dot-live"></span>
+            Streaming · 250 Hz
+          </span>
+        </div>
+        <div class="eeg-channels" id="eegChannels">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- Bottom row -->
+      <div class="bottom-row">
+
+        <!-- Frequency Spectrum -->
+        <div class="panel">
+          <div class="panel-title">Frequency Power Spectrum</div>
+          <div class="spectrum-bars" id="specBars"></div>
+          <div class="spec-labels">
+            <span class="spec-label">δ</span>
+            <span class="spec-label">θ</span>
+            <span class="spec-label">α</span>
+            <span class="spec-label">β</span>
+            <span class="spec-label">γ</span>
+          </div>
+        </div>
+
+        <!-- Accuracy History -->
+        <div class="panel">
+          <div class="panel-title">Classification Accuracy History</div>
+          <div class="acc-canvas-wrap">
+            <canvas id="accCanvas" width="400" height="90"></canvas>
+          </div>
+          <div style="font-size:0.72rem; color:var(--muted); margin-top:0.5rem; text-align:center">
+            Last 20 classification runs
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ABOUT -->
+  <div class="about-strip">
+    <div class="about-card">
+      <div class="about-block">
+        <h4>What is Motor Imagery?</h4>
+        <p>Motor imagery (MI) is the mental simulation of movement without actual physical execution. EEG signals differ measurably between imagined movements, enabling non-invasive BCI systems.</p>
+      </div>
+      <div class="about-block">
+        <h4>What is MSVTNet?</h4>
+        <p>MSVTNet is a deep learning architecture combining multi-scale temporal convolutions with a vision transformer, optimised for EEG classification. This project improved BCI accuracy by 15% over the baseline model at NIT Tiruchirappalli.</p>
+      </div>
+      <div class="about-block">
+        <h4>About This Simulation</h4>
+        <p>This demo simulates the signal processing and classification pipeline. The waveforms, confidence scores, and outputs are generated to reflect real EEG characteristics — not live neural data.</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ── CONFIG ──
+    const CHANNEL_NAMES = ['Fz','FC3','FC1','FCz','FC2','FC4','C5','C3','Cz','C4','C6','CP3','CP1','CPz','CP2','CP4','Pz','PO3','POz','PO4','Oz'];
+    const COLORS = ['#2a5cff','#00d4aa','#ffd166','#ff6b6b','#a78bfa','#38bdf8','#fb923c','#4ade80','#f472b6','#e879f9','#67e8f9','#fbbf24','#86efac','#93c5fd','#c4b5fd','#fca5a5','#6ee7b7','#bae6fd','#d8b4fe','#fde68a','#a7f3d0'];
+    const TASK_NAMES = { left: 'Left Hand', right: 'Right Hand', feet: 'Feet', tongue: 'Tongue' };
+
+    let animId = null;
+    let isRunning = false;
+    let t = 0;
+    let accHistory = [];
+    let taskFreq = { left: 10, right: 12, feet: 8, tongue: 14 };
+
+    // Sliders
+    document.getElementById('ampRange').addEventListener('input', function() {
+      document.getElementById('ampVal').textContent = parseFloat(this.value).toFixed(1) + '×';
+    });
+    document.getElementById('noiseRange').addEventListener('input', function() {
+      document.getElementById('noiseVal').textContent = this.value + '%';
+    });
+
+    // Build EEG channel rows
+    const eegChannelsEl = document.getElementById('eegChannels');
+    const canvases = [];
+    const ctxs = [];
+
+    CHANNEL_NAMES.forEach((name, i) => {
+      const row = document.createElement('div');
+      row.className = 'channel-row';
+      row.innerHTML = `<span class="channel-name">${name}</span>`;
+      const canvas = document.createElement('canvas');
+      canvas.className = 'eeg-wave';
+      canvas.width = 600;
+      canvas.height = 44;
+      row.appendChild(canvas);
+      eegChannelsEl.appendChild(row);
+      canvases.push(canvas);
+      ctxs.push(canvas.getContext('2d'));
+    });
+
+    // Build spectrum bars
+    const specBarsEl = document.getElementById('specBars');
+    const specBars = [];
+    const specColors = ['#a78bfa','#38bdf8','#2a5cff','#00d4aa','#ffd166'];
+    for (let i = 0; i < 30; i++) {
+      const bar = document.createElement('div');
+      bar.className = 'spec-bar';
+      const band = Math.floor(i / 6);
+      bar.style.background = specColors[band];
+      bar.style.height = '4px';
+      specBarsEl.appendChild(bar);
+      specBars.push(bar);
+    }
+
+    function getParams() {
+      return {
+        task: document.getElementById('taskSelect').value,
+        subject: document.getElementById('subjectSelect').value,
+        amp: parseFloat(document.getElementById('ampRange').value),
+        noise: parseInt(document.getElementById('noiseRange').value) / 100,
+      };
+    }
+
+    function eegSample(ch, time, task, amp, noise) {
+      const base = taskFreq[task] || 10;
+      const freq = base + ch * 0.4;
+      const mu = Math.sin(2 * Math.PI * freq * time) * amp;
+      const beta = Math.sin(2 * Math.PI * (freq * 2.5) * time) * amp * 0.35;
+      const n = (Math.random() - 0.5) * noise * 2.5 * amp;
+      return mu + beta + n;
+    }
+
+    function drawWave(ctx, canvas, ch, params) {
+      const W = canvas.width, H = canvas.height;
+      ctx.clearRect(0, 0, W, H);
+      ctx.beginPath();
+      ctx.strokeStyle = COLORS[ch % COLORS.length];
+      ctx.lineWidth = 1.5;
+      ctx.shadowColor = COLORS[ch % COLORS.length];
+      ctx.shadowBlur = 4;
+      for (let x = 0; x < W; x++) {
+        const localT = t - (W - x) / 250;
+        const y = H / 2 - eegSample(ch, localT, params.task, params.amp, params.noise) * (H / 3);
+        if (x === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+
+    function updateSpectrum(params) {
+      // Band power approximations per task
+      const profiles = {
+        left:   [0.2, 0.25, 0.85, 0.65, 0.35],
+        right:  [0.18, 0.22, 0.7, 0.9, 0.4],
+        feet:   [0.3, 0.35, 0.6, 0.5, 0.6],
+        tongue: [0.15, 0.3, 0.55, 0.75, 0.8],
+      };
+      const p = profiles[params.task] || profiles.left;
+      specBars.forEach((bar, i) => {
+        const band = Math.floor(i / 6);
+        const jitter = 0.7 + Math.random() * 0.6;
+        const h = Math.max(4, p[band] * 70 * jitter * params.amp);
+        bar.style.height = h + 'px';
+      });
+    }
+
+    function loop() {
+      if (!isRunning) return;
+      t += 1 / 60;
+      const params = getParams();
+      canvases.forEach((c, i) => drawWave(ctxs[i], c, i, params));
+      if (Math.round(t * 60) % 8 === 0) updateSpectrum(params);
+      animId = requestAnimationFrame(loop);
+    }
+
+    function softmax(arr) {
+      const max = Math.max(...arr);
+      const exps = arr.map(x => Math.exp(x - max));
+      const sum = exps.reduce((a, b) => a + b, 0);
+      return exps.map(x => x / sum);
+    }
+
+    function classify(task, noise, subject) {
+      const taskIdx = { left: 0, right: 1, feet: 2, tongue: 3 };
+      const correct = taskIdx[task];
+      const logits = [0, 0, 0, 0].map((_, i) => {
+        let base = i === correct ? 3.2 : (Math.random() - 0.3);
+        if (subject === 'noise') base -= Math.random() * 1.2;
+        if (subject === 'fatigue') base -= Math.random() * 0.6;
+        return base;
+      });
+      const probs = softmax(logits);
+      const predicted = probs.indexOf(Math.max(...probs));
+      const baseAcc = subject === 'noise' ? 72 : subject === 'fatigue' ? 80 : 89;
+      const accuracy = baseAcc + (Math.random() * 8 - 4) - noise * 15;
+      return { probs, predicted, accuracy: Math.min(99, Math.max(55, accuracy)) };
+    }
+
+    function drawAccHistory() {
+      const canvas = document.getElementById('accCanvas');
+      const ctx = canvas.getContext('2d');
+      const W = canvas.width, H = canvas.height;
+      ctx.clearRect(0, 0, W, H);
+
+      if (accHistory.length < 2) return;
+      const n = Math.min(20, accHistory.length);
+      const data = accHistory.slice(-n);
+      const step = W / (n - 1);
+
+      // Grid lines
+      ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+      ctx.lineWidth = 1;
+      [60, 70, 80, 90].forEach(v => {
+        const y = H - ((v - 50) / 50) * H;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(W, y);
+        ctx.stroke();
+      });
+
+      // Area fill
+      ctx.beginPath();
+      data.forEach((v, i) => {
+        const x = i * step;
+        const y = H - ((v - 50) / 50) * H;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.lineTo((n-1) * step, H);
+      ctx.lineTo(0, H);
+      ctx.closePath();
+      const grad = ctx.createLinearGradient(0, 0, 0, H);
+      grad.addColorStop(0, 'rgba(0,212,170,0.3)');
+      grad.addColorStop(1, 'rgba(0,212,170,0)');
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      // Line
+      ctx.beginPath();
+      ctx.strokeStyle = '#00d4aa';
+      ctx.lineWidth = 2;
+      data.forEach((v, i) => {
+        const x = i * step;
+        const y = H - ((v - 50) / 50) * H;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+
+      // Dots
+      data.forEach((v, i) => {
+        const x = i * step;
+        const y = H - ((v - 50) / 50) * H;
+        ctx.beginPath();
+        ctx.arc(x, y, 3, 0, Math.PI * 2);
+        ctx.fillStyle = '#00d4aa';
+        ctx.fill();
+      });
+    }
+
+    // Run button
+    document.getElementById('runBtn').addEventListener('click', () => {
+      const btn = document.getElementById('runBtn');
+
+      if (!isRunning) {
+        isRunning = true;
+        btn.textContent = '⏹ Stop';
+        btn.classList.add('running');
+        loop();
+      } else {
+        isRunning = false;
+        btn.textContent = '▶ Run Classification';
+        btn.classList.remove('running');
+        if (animId) cancelAnimationFrame(animId);
+      }
+
+      // Always run classification
+      const params = getParams();
+      const result = classify(params.task, params.noise, params.subject);
+      const names = ['Left Hand','Right Hand','Feet','Tongue'];
+
+      document.getElementById('resultValue').textContent = names[result.predicted];
+      document.getElementById('resultAcc').textContent = `Accuracy: ${result.accuracy.toFixed(1)}%`;
+
+      const ids = ['c0','c1','c2','c3'];
+      const barIds = ['b0','b1','b2','b3'];
+      result.probs.forEach((p, i) => {
+        document.getElementById(ids[i]).textContent = (p * 100).toFixed(1) + '%';
+        document.getElementById(barIds[i]).style.width = (p * 100).toFixed(1) + '%';
+      });
+
+      accHistory.push(result.accuracy);
+      drawAccHistory();
+    });
+
+    // Initial idle waveform
+    (function idleLoop() {
+      if (isRunning) return;
+      t += 1 / 90;
+      const params = { task: 'left', amp: 0.4, noise: 0.1 };
+      canvases.forEach((c, i) => drawWave(ctxs[i], c, i, params));
+      updateSpectrum(params);
+      requestAnimationFrame(idleLoop);
+    })();
+  </script>
+
+</body>
+</html>
